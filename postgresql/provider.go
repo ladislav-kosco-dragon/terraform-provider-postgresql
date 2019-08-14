@@ -10,8 +10,9 @@ import (
 )
 
 const (
-	defaultProviderMaxOpenConnections = 4
-	defaultExpectedPostgreSQLVersion  = "9.0.0"
+	defaultProviderMaxOpenConnections     = 4
+	defaultExpectedPostgreSQLVersion      = "9.0.0"
+	defaultCompatibilityPostgreSQLVersion = "9.0.0"
 )
 
 // Provider returns a terraform.ResourceProvider.
@@ -97,6 +98,13 @@ func Provider() terraform.ResourceProvider {
 				Description:  "Specify the expected version of PostgreSQL.",
 				ValidateFunc: validateExpectedVersion,
 			},
+			"compatibility_version": {
+				Type:         schema.TypeString,
+				Optional:     true,
+				Default:      defaultCompatibilityPostgreSQLVersion,
+				Description:  "Specify the compatibility version of PostgreSQL.",
+				ValidateFunc: validateExpectedVersion,
+			},
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
@@ -147,19 +155,22 @@ func providerConfigure(d *schema.ResourceData) (interface{}, error) {
 	}
 	versionStr := d.Get("expected_version").(string)
 	version, _ := semver.Parse(versionStr)
+	compat_versionStr := d.Get("compatibility_version").(string)
+	compat_version, _ := semver.Parse(compat_versionStr)
 
 	config := Config{
-		Host:              d.Get("host").(string),
-		Port:              d.Get("port").(int),
-		Username:          d.Get("username").(string),
-		Password:          d.Get("password").(string),
-		DatabaseUsername:  d.Get("database_username").(string),
-		Superuser:         d.Get("superuser").(bool),
-		SSLMode:           sslMode,
-		ApplicationName:   tfAppName(),
-		ConnectTimeoutSec: d.Get("connect_timeout").(int),
-		MaxConns:          d.Get("max_connections").(int),
-		ExpectedVersion:   version,
+		Host:                 d.Get("host").(string),
+		Port:                 d.Get("port").(int),
+		Username:             d.Get("username").(string),
+		Password:             d.Get("password").(string),
+		DatabaseUsername:     d.Get("database_username").(string),
+		Superuser:            d.Get("superuser").(bool),
+		SSLMode:              sslMode,
+		ApplicationName:      tfAppName(),
+		ConnectTimeoutSec:    d.Get("connect_timeout").(int),
+		MaxConns:             d.Get("max_connections").(int),
+		ExpectedVersion:      version,
+		CompatibilityVersion: compat_version,
 	}
 
 	client, err := config.NewClient(d.Get("database").(string))

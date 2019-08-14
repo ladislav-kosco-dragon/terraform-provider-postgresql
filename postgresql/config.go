@@ -75,18 +75,19 @@ var (
 
 // Config - provider config
 type Config struct {
-	Host              string
-	Port              int
-	Username          string
-	Password          string
-	DatabaseUsername  string
-	Superuser         bool
-	SSLMode           string
-	ApplicationName   string
-	Timeout           int
-	ConnectTimeoutSec int
-	MaxConns          int
-	ExpectedVersion   semver.Version
+	Host                 string
+	Port                 int
+	Username             string
+	Password             string
+	DatabaseUsername     string
+	Superuser            bool
+	SSLMode              string
+	ApplicationName      string
+	Timeout              int
+	ConnectTimeoutSec    int
+	MaxConns             int
+	ExpectedVersion      semver.Version
+	CompatibilityVersion semver.Version
 }
 
 // Client struct holding connection string
@@ -131,7 +132,7 @@ func (c *Config) NewClient(database string) (*Client, error) {
 		db.SetMaxIdleConns(0)
 		db.SetMaxOpenConns(c.MaxConns)
 
-		version, err := fingerprintCapabilities(db)
+		version, err := fingerprintCapabilities(db, c)
 		if err != nil {
 			db.Close()
 			return nil, errwrap.Wrapf("error detecting capabilities: {{err}}", err)
@@ -272,11 +273,13 @@ func (c *Client) DB() *sql.DB {
 
 // fingerprintCapabilities queries PostgreSQL to populate a local catalog of
 // capabilities.  This is only run once per Client.
-func fingerprintCapabilities(db *sql.DB) (*semver.Version, error) {
+func fingerprintCapabilities(db *sql.DB, config *Config) (*semver.Version, error) {
 	var pgVersion string
 	err := db.QueryRow(`SELECT VERSION()`).Scan(&pgVersion)
 	if err != nil {
-		return nil, errwrap.Wrapf("error PostgreSQL version: {{err}}", err)
+		// test compatibility_version set, ignore error connecting to yet non-existing database
+		pgVersion = "PostgreSQL " + config.CompatibilityVersion.String()
+		// return nil, errwrap.Wrapf("error PostgreSQL version: {{err}}", err)
 	}
 
 	// PostgreSQL 9.2.21 on x86_64-apple-darwin16.5.0, compiled by Apple LLVM version 8.1.0 (clang-802.0.42), 64-bit
